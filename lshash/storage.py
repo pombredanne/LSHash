@@ -21,8 +21,7 @@ def storage(storage_config, index):
     if 'dict' in storage_config:
         return InMemoryStorage(storage_config['dict'])
     elif 'redis' in storage_config:
-        storage_config['redis']['db'] = index
-        return RedisStorage(storage_config['redis'])
+        return RedisStorage(storage_config['redis'], index)
     else:
         raise ValueError("Only in-memory dictionary and Redis are supported.")
 
@@ -34,14 +33,6 @@ class BaseStorage(object):
 
     def keys(self):
         """ Returns a list of binary hashes that are used as dict keys. """
-        raise NotImplementedError
-
-    def set_val(self, key, val):
-        """ Set `val` at `key`, note that the `val` must be a string. """
-        raise NotImplementedError
-
-    def get_val(self, key):
-        """ Return `val` at `key`, note that the `val` must be a string. """
         raise NotImplementedError
 
     def append_val(self, key, val):
@@ -62,18 +53,12 @@ class BaseStorage(object):
 
 
 class InMemoryStorage(BaseStorage):
-    def __init__(self, config):
+    def __init__(self, h_index):
         self.name = 'dict'
         self.storage = dict()
 
     def keys(self):
         return self.storage.keys()
-
-    def set_val(self, key, val):
-        self.storage[key] = val
-
-    def get_val(self, key):
-        return self.storage[key]
 
     def append_val(self, key, val):
         self.storage.setdefault(key, []).append(val)
@@ -83,23 +68,26 @@ class InMemoryStorage(BaseStorage):
 
 
 class RedisStorage(BaseStorage):
-    def __init__(self, config):
+    def __init__(self, config, h_index):
         if not redis:
             raise ImportError("redis-py is required to use Redis as storage.")
         self.name = 'redis'
         self.storage = redis.StrictRedis(**config)
+        # a single db handles multiple hash tables, each one has prefix ``h[h_index].``
+        self.h_index = 'h%.2i.' % int(h_index)
 
-    def keys(self, pattern="*"):
-        return self.storage.keys(pattern)
+    def _list(self, key):
+        return self.h_index + key
 
-    def set_val(self, key, val):
-        self.storage.set(key, val)
-
-    def get_val(self, key):
-        return self.storage.get(key)
+    def keys(self, pattern='*'):
+        # return the keys BUT be agnostic with reference to the hash table
+        return [k.split('.')[1] for k in self.storage.keys(self.h_index + pattern)]
 
     def append_val(self, key, val):
-        self.storage.rpush(key, json.dumps(val))
+        self.storage.rpush(self._list(key), json.dumps(val))
 
     def get_list(self, key):
-        return self.storage.lrange(key, 0, -1)
+        print "getting list for ", self._list(key)
+        _list = self.storage.lrange(self._list(key), 0, -1)  # list elements are plain strings here
+        _list = [json.loads(el) for el in _list]  # transform strings into python elements
+        return _list
