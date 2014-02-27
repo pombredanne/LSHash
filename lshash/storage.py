@@ -28,7 +28,7 @@ def storage(storage_config, index):
 
 class BaseStorage(object):
     def __init__(self, config):
-        """ An abstract class used as an adapter for storages. """
+        """ An abstract class used as an adapter printfor storages. """
         raise NotImplementedError
 
     def keys(self):
@@ -88,5 +88,10 @@ class RedisStorage(BaseStorage):
 
     def get_list(self, key):
         _list = self.storage.lrange(self._list(key), 0, -1)  # list elements are plain strings here
-        _list = [json.loads(el) for el in _list]  # transform strings into python elements
+        _list = [json.loads(el) for el in _list]  # transform strings into python tuples
+        for el in _list:
+            # if len(el) is 2, then el[1] is the extra value associated to the element
+            if len(el) == 2 and type(el[0]) == list:
+                el[0] = tuple(el[0])
+        _list = [tuple(el) for el in _list]
         return _list
