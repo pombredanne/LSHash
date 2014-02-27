@@ -87,7 +87,6 @@ class RedisStorage(BaseStorage):
         self.storage.rpush(self._list(key), json.dumps(val))
 
     def get_list(self, key):
-        print "getting list for ", self._list(key)
         _list = self.storage.lrange(self._list(key), 0, -1)  # list elements are plain strings here
         _list = [json.loads(el) for el in _list]  # transform strings into python elements
         return _list
