@@ -25,9 +25,11 @@ def test_lshash():
     lsh = LSHash(6, 8, 1)
     for i in xrange(num_elements):
         lsh.index(list(els[i]))
+        lsh.index(list(els[i]))  # multiple insertions
     hasht = lsh.hash_tables[0]
     itms = [hasht.get_list(k) for k in hasht.keys()]
     for itm in itms:
+        assert itms.count(itm) == 1
         for el in itm:
             assert el in els
     for el in els:
@@ -64,17 +66,19 @@ def test_lshash_redis():
     """
     Test external lshash module
     """
-    config = {"redis": {"host": '192.168.70.26', "port": 6379, "db": 15}}
+    config = {"redis": {"host": 'localhost', "port": 6379, "db": 15}}
     sr = StrictRedis(**config['redis'])
     sr.flushdb()
 
     lsh = LSHash(6, 8, 1, config)
     for i in xrange(num_elements):
         lsh.index(list(els[i]))
+        lsh.index(list(els[i]))  # multiple insertions should be prevented by the library
     hasht = lsh.hash_tables[0]
     itms = [hasht.get_list(k) for k in hasht.keys()]
     for itm in itms:
         for el in itm:
+            assert itms.count(itm) == 1  # have multiple insertions been prevented?
             assert el in els
     for el in els:
         res = lsh.query(list(el), num_results=1, distance_func='euclidean')[0]
@@ -88,16 +92,18 @@ def test_lshash_redis_extra_val():
     """
     Test external lshash module
     """
-    config = {"redis": {"host": '192.168.70.26', "port": 6379, "db": 15}}
+    config = {"redis": {"host": 'localhost', "port": 6379, "db": 15}}
     sr = StrictRedis(**config['redis'])
     sr.flushdb()
 
     lsh = LSHash(6, 8, 1, config)
     for i in xrange(num_elements):
         lsh.index(list(els[i]), el_names[i])
+        lsh.index(list(els[i]), el_names[i])  # multiple insertions
     hasht = lsh.hash_tables[0]
     itms = [hasht.get_list(k) for k in hasht.keys()]
     for itm in itms:
+        assert itms.count(itm) == 1
         for el in itm:
             assert el[0] in els
             assert el[1] in el_names

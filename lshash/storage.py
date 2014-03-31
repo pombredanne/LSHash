@@ -61,10 +61,10 @@ class InMemoryStorage(BaseStorage):
         return self.storage.keys()
 
     def append_val(self, key, val):
-        self.storage.setdefault(key, []).append(val)
+        self.storage.setdefault(key, set()).update([val])
 
     def get_list(self, key):
-        return self.storage.get(key, [])
+        return list(self.storage.get(key, []))
 
 
 class RedisStorage(BaseStorage):
@@ -84,10 +84,10 @@ class RedisStorage(BaseStorage):
         return [k.split('.')[1] for k in self.storage.keys(self.h_index + pattern)]
 
     def append_val(self, key, val):
-        self.storage.rpush(self._list(key), json.dumps(val))
+        self.storage.sadd(self._list(key), json.dumps(val))
 
     def get_list(self, key):
-        _list = self.storage.lrange(self._list(key), 0, -1)  # list elements are plain strings here
+        _list = list(self.storage.smembers(self._list(key)))  # list elements are plain strings here
         _list = [json.loads(el) for el in _list]  # transform strings into python tuples
         for el in _list:
             # if len(el) is 2, then el[1] is the extra value associated to the element
